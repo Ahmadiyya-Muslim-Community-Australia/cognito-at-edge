@@ -172,8 +172,21 @@ export class Authenticator {
 	 * @param  {String} code        Authorization code.
 	 * @return {Promise} Authenticated user tokens.
 	 */
-	_fetchTokensFromCode(redirectURI: string, code: string): Promise<Tokens> {
+	_fetchTokensFromCode(
+		redirectURI: string,
+		code: string,
+		codeVerifier?: string,
+	): Promise<Tokens> {
 		const authorization = this._getAuthorization();
+		const data: Record<string, string> = {
+			client_id: this._userPoolAppId,
+			code: code,
+			grant_type: 'authorization_code',
+			redirect_uri: redirectURI,
+		};
+		if (codeVerifier) {
+			data.code_verifier = codeVerifier;
+		}
 		const request = {
 			url: `https://${this._userPoolDomain}/oauth2/token`,
 			method: 'POST',
@@ -181,12 +194,7 @@ export class Authenticator {
 				'Content-Type': 'application/x-www-form-urlencoded',
 				...(authorization && { Authorization: `Basic ${authorization}` }),
 			},
-			data: stringify({
-				client_id: this._userPoolAppId,
-				code: code,
-				grant_type: 'authorization_code',
-				redirect_uri: redirectURI,
-			}),
+			data: stringify(data),
 		} as const;
 		this._logger.debug({
 			msg: 'Fetching tokens from grant code...',
@@ -786,6 +794,12 @@ export class Authenticator {
 			params.append('state', state);
 		}
 
+		// Add PKCE code_challenge — required by Cognito Managed Login v2
+		if (csrfTokens.pkceHash) {
+			params.append('code_challenge', csrfTokens.pkceHash);
+			params.append('code_challenge_method', 'S256');
+		}
+
 		const userPoolUrl = `https://${this._userPoolDomain}/oauth2/authorize?${params}`;
 
 		this._logger.debug(
@@ -930,9 +944,25 @@ export class Authenticator {
 
 			const requestParams = parse(request.querystring);
 			if (requestParams.code) {
+				// Read PKCE code_verifier from cookies (required by Managed Login v2)
+				let codeVerifier: string | undefined;
+				if (this._csrfProtection) {
+					try {
+						const csrfCookieTokens = this._getCSRFTokensFromCookie(
+							request.headers.cookie,
+						);
+						codeVerifier = csrfCookieTokens.pkce;
+					} catch (e) {
+						this._logger.warn({
+							msg: 'Failed to read PKCE from cookie',
+							err: e,
+						});
+					}
+				}
 				return this._fetchTokensFromCode(
 					redirectURI,
 					requestParams.code as string,
+					codeVerifier,
 				).then((tokens) =>
 					this._getRedirectResponse(
 						tokens,
