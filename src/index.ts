@@ -479,7 +479,7 @@ export class Authenticator {
 						value: 'no-cache',
 					},
 				],
-				'set-cookie': cookies.map((c) => ({ key: 'Set-Cookie', value: c })),
+				'set-cookie': cookies.map((c) => ({ key: 'set-cookie', value: c })),
 			},
 		};
 
@@ -740,7 +740,7 @@ export class Authenticator {
 					},
 				],
 				'set-cookie': responseCookies.map((c) => ({
-					key: 'Set-Cookie',
+					key: 'set-cookie',
 					value: c,
 				})),
 			},
@@ -844,7 +844,7 @@ export class Authenticator {
 				...(cookies
 					? {
 							'set-cookie': cookies.map((c) => ({
-								key: 'Set-Cookie',
+								key: 'set-cookie',
 								value: c,
 							})),
 						}
