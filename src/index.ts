@@ -786,7 +786,7 @@ export class Authenticator {
 			params.append('state', state);
 		}
 
-		const userPoolUrl = `https://${this._userPoolDomain}/authorize?${params}`;
+		const userPoolUrl = `https://${this._userPoolDomain}/oauth2/authorize?${params}`;
 
 		this._logger.debug(
 			`Redirecting user to Cognito User Pool URL ${userPoolUrl}`,
